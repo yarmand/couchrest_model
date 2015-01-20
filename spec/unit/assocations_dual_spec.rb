@@ -11,7 +11,7 @@ describe 'Associations' do
     context 'the other side also belongs_to (1-1)' do
       it 'should set the other side property too' do
         father.wife = mummy
-        expect(mummy.husband).to eq(father)
+        mummy.husband.should eql(father)
       end
     end
 

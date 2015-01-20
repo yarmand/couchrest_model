@@ -42,7 +42,7 @@ module CouchRest
 
           property(opts[:foreign_key], String, opts)
 
-          associations.push(Association.new(:belongs_to, attrib, options, nil))
+          associations.push(Association.new(:belongs_to, attrib, opts, nil))
 
           create_association_property_setter(attrib, opts)
           create_belongs_to_getter(attrib, opts)
@@ -95,7 +95,7 @@ module CouchRest
 
           property(opts[:foreign_key], [String], opts)
 
-          associations.push(Association.new(:belongs_to, attrib, options, nil))
+          associations.push(Association.new(:belongs_to, attrib, opts, nil))
 
           create_association_property_setter(attrib, opts)
           create_collection_of_getter(attrib, opts)
@@ -103,11 +103,11 @@ module CouchRest
         end
 
 
-        private
-
         def associations
           @_associations ||= []
         end
+
+        private
 
         def merge_belongs_to_association_options(attrib, options = nil)
           opts = {
@@ -157,6 +157,7 @@ module CouchRest
           class_eval <<-EOS, __FILE__, __LINE__ + 1
             def #{attrib}=(value)
               self.#{options[:foreign_key]} = value.nil? ? nil : value.id
+              value.set_back_association(self, #{options})
               @#{attrib} = value
             end
           EOS
@@ -182,6 +183,11 @@ module CouchRest
           EOS
         end
 
+      end
+
+      def set_back_association(value, options)
+        assoc = self.class.associations.detect { |assoc| assoc[:options][:class_name] == value.class.name }
+        send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
       end
 
     end
