@@ -1,5 +1,5 @@
 class  Husband < CouchRest::Model::Base
-  property :name, [String]
+  property :name, String
 
   belongs_to :wife
 
