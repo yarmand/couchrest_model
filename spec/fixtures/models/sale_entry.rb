@@ -7,5 +7,5 @@ class SaleEntry < CouchRest::Model::Base
   design do
     view :by_description
   end
-  
+
 end
