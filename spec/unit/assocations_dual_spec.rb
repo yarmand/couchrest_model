@@ -3,9 +3,16 @@ require 'spec_helper'
 
 describe 'Associations' do
 
+  let(:father) { Husband.create(name: 'bob')}
+  let(:mummy)  { Wife.create(   name: 'claire')}
+  let(:kid)    { Kid.create(    name: 'Vladimir')}
+
   describe 'of type belongs_to' do
     context 'the other side also belongs_to (1-1)' do
-      it 'should set the other side property too'
+      it 'should set the other side property too' do
+        father.wife = mummy
+        expect(mummy.husband).to eq(father)
+      end
     end
 
     context 'the other side do not back associate (1-0)' do

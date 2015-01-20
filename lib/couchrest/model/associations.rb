@@ -3,10 +3,12 @@ module CouchRest
     module Associations
 
       # Basic support for relationships between CouchRest::Model::Base
-      
+
       def self.included(base)
         base.extend(ClassMethods)
       end
+
+      Association = Struct.new(:type, :attribute, :options, :target)
 
       module ClassMethods
 
@@ -15,14 +17,14 @@ module CouchRest
         # An attribute will be created matching the name of the attribute
         # with '_id' on the end, or the foreign key (:foreign_key) provided.
         #
-        # Searching for the assocated object is performed using a string 
+        # Searching for the assocated object is performed using a string
         # (:proxy) to be evaulated in the context of the owner. Typically
         # this will be set to the class name (:class_name), or determined
         # automatically if the owner belongs to a proxy object.
         #
         # If the association owner is proxied by another model, than an attempt will
         # be made to automatically determine the correct place to request
-        # the documents. Typically, this is a method with the pluralized name of the 
+        # the documents. Typically, this is a method with the pluralized name of the
         # association inside owner's owner, or proxy.
         #
         # For example, imagine a company acts as a proxy for invoices and clients.
@@ -32,13 +34,15 @@ module CouchRest
         #
         #    self.company.clients
         #
-        # If the name of the collection proxy is not the pluralized assocation name, 
+        # If the name of the collection proxy is not the pluralized assocation name,
         # it can be set with the :proxy_name option.
         #
         def belongs_to(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
 
           property(opts[:foreign_key], String, opts)
+
+          associations.push(Association.new(:belongs_to, attrib, options, nil))
 
           create_association_property_setter(attrib, opts)
           create_belongs_to_getter(attrib, opts)
@@ -91,6 +95,8 @@ module CouchRest
 
           property(opts[:foreign_key], [String], opts)
 
+          associations.push(Association.new(:belongs_to, attrib, options, nil))
+
           create_association_property_setter(attrib, opts)
           create_collection_of_getter(attrib, opts)
           create_collection_of_setter(attrib, opts)
@@ -98,6 +104,10 @@ module CouchRest
 
 
         private
+
+        def associations
+          @_associations ||= []
+        end
 
         def merge_belongs_to_association_options(attrib, options = nil)
           opts = {
