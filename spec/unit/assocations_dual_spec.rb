@@ -16,12 +16,19 @@ describe 'Associations' do
     end
 
     context 'the other side do not back associate (1-0)' do
-      it 'should set property without error'
+      let(:invoice) { SaleInvoice.create(:price => 2000) }
+      let(:client)  { Client.create(:name => "Sam Lown") }
+      it 'should set property without error' do
+        lambda { invoice.client = client }.should_not raise_error
+      end
 
     end
 
     context 'the other side associate as a collection (1-n)' do
-      it 'should be part of the collection weh setting the property'
+      it 'should be part of the collection when setting the property' do
+        kid.dad = father
+        father.children.should include(kid)
+      end
     end
   end
 

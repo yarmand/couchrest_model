@@ -95,7 +95,7 @@ module CouchRest
 
           property(opts[:foreign_key], [String], opts)
 
-          associations.push(Association.new(:belongs_to, attrib, opts, nil))
+          associations.push(Association.new(:collection_of, attrib, opts, nil))
 
           create_association_property_setter(attrib, opts)
           create_collection_of_getter(attrib, opts)
@@ -186,8 +186,14 @@ module CouchRest
       end
 
       def set_back_association(value, options)
-        assoc = self.class.associations.detect { |assoc| assoc[:options][:class_name] == value.class.name }
-        send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
+        assoc = self.class.associations.detect { |ass| ass[:options][:class_name] == value.class.name }
+        return unless assoc
+        case assoc[:type]
+        when :belongs_to
+          send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
+        when :collection_of
+          instance_eval("#{assoc[:options][:foreign_key]}.push('#{value.nil? ? nil : value.id}')")
+        end
       end
 
     end
