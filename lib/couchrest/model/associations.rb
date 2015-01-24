@@ -156,8 +156,13 @@ module CouchRest
         def create_belongs_to_setter(attrib, options)
           class_eval <<-EOS, __FILE__, __LINE__ + 1
             def #{attrib}=(value)
-              self.#{options[:foreign_key]} = value.nil? ? nil : value.id
-              value.set_back_association(self, #{options})
+                old_binding = @#{attrib}
+                self.#{options[:foreign_key]} = value.nil? ? nil : value.id
+              unless value.nil?
+                value.set_back_association(self, self.class.name)
+              else
+                old_binding.set_back_association(nil, self.class.name)
+              end
               @#{attrib} = value
             end
           EOS
@@ -185,8 +190,8 @@ module CouchRest
 
       end
 
-      def set_back_association(value, options)
-        assoc = self.class.associations.detect { |ass| ass[:options][:class_name] == value.class.name }
+      def set_back_association(value, class_name)
+        assoc = self.class.associations.detect { |ass| ass[:options][:class_name] == class_name }
         return unless assoc
         case assoc[:type]
         when :belongs_to
@@ -215,34 +220,42 @@ module CouchRest
       def << obj
         check_obj(obj)
         casted_by[casted_by_property.to_s] << obj.id
+        obj.set_back_association(casted_by, casted_by.class.name)
         super(obj)
       end
 
       def push(obj)
         check_obj(obj)
         casted_by[casted_by_property.to_s].push obj.id
+        obj.set_back_association(casted_by, casted_by.class.name)
         super(obj)
       end
 
       def unshift(obj)
         check_obj(obj)
         casted_by[casted_by_property.to_s].unshift obj.id
+        obj.set_back_association(casted_by, casted_by.class.name)
         super(obj)
       end
 
       def []= index, obj
         check_obj(obj)
         casted_by[casted_by_property.to_s][index] = obj.id
+        obj.set_back_association(casted_by, casted_by.class.name)
         super(index, obj)
       end
 
       def pop
+        obj = casted_by.send(casted_by_property.options[:proxy_name]).last
         casted_by[casted_by_property.to_s].pop
+        obj.set_back_association(nil, casted_by.class.name)
         super
       end
 
       def shift
+        obj = casted_by.send(casted_by_property.options[:proxy_name]).first
         casted_by[casted_by_property.to_s].shift
+        obj.set_back_association(nil, casted_by.class.name)
         super
       end
 
