@@ -8,14 +8,20 @@ describe 'Associations' do
   let(:kid)    { Kid.create(    name: 'Vladimir')}
 
   describe 'of type belongs_to' do
-    context 'the other side also belongs_to (1-1)' do
+    context 'with the other side also belongs_to (1-1)' do
       it 'should set the other side property too' do
         father.wife = mummy
         mummy.husband.should eql(father)
       end
+
+      it 'should remove the other side if value is nil' do
+        father.wife = mummy
+        father.wife = nil
+        mummy.husband.should be_nil
+      end
     end
 
-    context 'the other side do not back associate (1-0)' do
+    context 'with the other side do not back associate (1-0)' do
       let(:invoice) { SaleInvoice.create(:price => 2000) }
       let(:client)  { Client.create(:name => "Sam Lown") }
       it 'should set property without error' do
@@ -24,7 +30,7 @@ describe 'Associations' do
 
     end
 
-    context 'the other side associate as a collection (1-n)' do
+    context 'with the other side associate as a collection (1-n)' do
       it 'should be part of the collection when setting the property' do
         kid.dad = father
         father.children.should include(kid)
