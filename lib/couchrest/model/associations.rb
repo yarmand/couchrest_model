@@ -1,11 +1,12 @@
 module CouchRest
   module Model
     module Associations
+      extend ActiveSupport::Concern
 
       # Basic support for relationships between CouchRest::Model::Base
 
-      def self.included(base)
-        base.extend(ClassMethods)
+      included do
+        after_save :save_dirty_association if respond_to?(:after_save)
       end
 
       Association = Struct.new(:type, :attribute, :options, :target)
@@ -156,13 +157,15 @@ module CouchRest
         def create_belongs_to_setter(attrib, options)
           class_eval <<-EOS, __FILE__, __LINE__ + 1
             def #{attrib}=(value)
-                old_binding = @#{attrib}
+                binding = @#{attrib}
                 self.#{options[:foreign_key]} = value.nil? ? nil : value.id
               unless value.nil?
-                value.set_back_association(self, self.class.name)
+                binding = value
+                binding.set_back_association(self, self.class.name)
               else
-                old_binding.set_back_association(nil, self.class.name)
+                binding.set_back_association(nil, self.class.name)
               end
+              register_dirty_association(binding)
               @#{attrib} = value
             end
           EOS
@@ -198,6 +201,20 @@ module CouchRest
           send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
         when :collection_of
           instance_eval("#{assoc[:options][:foreign_key]}.push('#{value.nil? ? nil : value.id}')")
+        end
+      end
+
+      def dirty_associations
+        @_dirty_associations ||= []
+      end
+
+      def register_dirty_association(obj)
+        dirty_associations << obj unless @_dirty_associations.include?(obj)
+      end
+
+      def save_dirty_association
+        dirty_associations.each do |obj|
+          obj.save
         end
       end
 

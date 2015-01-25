@@ -36,6 +36,15 @@ describe 'Associations' do
         father.children.should include(kid)
       end
     end
+
+    describe 'when object is saved' do
+      it 'should also save other side' do
+        father.wife = mummy
+        mummy.should_receive(:save)
+        father.save
+      end
+  end
+
   end
 
   describe 'of type collection_of' do
@@ -131,7 +140,4 @@ describe 'Associations' do
     end
   end
 
-  describe 'when object is saved' do
-    it 'should also save other side'
-  end
 end
