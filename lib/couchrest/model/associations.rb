@@ -213,7 +213,8 @@ module CouchRest
       end
 
       def save_dirty_association
-        dirty_associations.each do |obj|
+        while !dirty_associations.empty? do
+          obj = dirty_associations.pop
           obj.save
         end
       end
@@ -238,6 +239,7 @@ module CouchRest
         check_obj(obj)
         casted_by[casted_by_property.to_s] << obj.id
         obj.set_back_association(casted_by, casted_by.class.name)
+        casted_by.register_dirty_association(obj)
         super(obj)
       end
 
@@ -245,6 +247,7 @@ module CouchRest
         check_obj(obj)
         casted_by[casted_by_property.to_s].push obj.id
         obj.set_back_association(casted_by, casted_by.class.name)
+        casted_by.register_dirty_association(obj)
         super(obj)
       end
 
@@ -252,6 +255,7 @@ module CouchRest
         check_obj(obj)
         casted_by[casted_by_property.to_s].unshift obj.id
         obj.set_back_association(casted_by, casted_by.class.name)
+        casted_by.register_dirty_association(obj)
         super(obj)
       end
 
@@ -259,6 +263,7 @@ module CouchRest
         check_obj(obj)
         casted_by[casted_by_property.to_s][index] = obj.id
         obj.set_back_association(casted_by, casted_by.class.name)
+        casted_by.register_dirty_association(obj)
         super(index, obj)
       end
 
@@ -266,6 +271,7 @@ module CouchRest
         obj = casted_by.send(casted_by_property.options[:proxy_name]).last
         casted_by[casted_by_property.to_s].pop
         obj.set_back_association(nil, casted_by.class.name)
+        casted_by.register_dirty_association(obj)
         super
       end
 
@@ -273,6 +279,7 @@ module CouchRest
         obj = casted_by.send(casted_by_property.options[:proxy_name]).first
         casted_by[casted_by_property.to_s].shift
         obj.set_back_association(nil, casted_by.class.name)
+        casted_by.register_dirty_association(obj)
         super
       end
 
