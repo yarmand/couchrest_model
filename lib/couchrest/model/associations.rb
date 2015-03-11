@@ -111,9 +111,11 @@ module CouchRest
         private
 
         def merge_belongs_to_association_options(attrib, options = nil)
+          class_name = options.delete(:class_name) if options.is_a?(Hash)
+          class_name ||= attrib
           opts = {
             :foreign_key => attrib.to_s.singularize + '_id',
-            :class_name  => attrib.to_s.singularize.camelcase,
+            :class_name  => class_name.to_s.singularize.camelcase,
             :proxy_name  => attrib.to_s.pluralize,
             :allow_blank => false
           }
@@ -161,9 +163,9 @@ module CouchRest
                 self.#{options[:foreign_key]} = value.nil? ? nil : value.id
               unless value.nil?
                 binding = value
-                binding.set_back_association(self, self.class.name)
+                binding.set_back_association(self, self.class.name, '#{options[:reverse_association]}')
               else
-                binding.set_back_association(nil, self.class.name)
+                binding.set_back_association(nil, self.class.name, '#{options[:reverse_association]}')
               end
               register_dirty_association(binding)
               @#{attrib} = value
@@ -193,14 +195,23 @@ module CouchRest
 
       end
 
-      def set_back_association(value, class_name)
-        assoc = self.class.associations.detect { |ass| ass[:options][:class_name] == class_name }
-        return unless assoc
-        case assoc[:type]
-        when :belongs_to
-          send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
-        when :collection_of
-          instance_eval("#{assoc[:options][:foreign_key]}.push('#{value.nil? ? nil : value.id}')")
+      def set_back_association(value, class_name, reverse_association = nil)
+        if reverse_association && !reverse_association.empty?
+          prop = self.class.properties.detect { |prop|  prop.name =~ %r{#{reverse_association}_id} }
+          if prop.type.ancestors.include? Enumerable
+            instance_eval("#{prop.name}.push('#{value.nil? ? nil : value.id}')")
+          else
+            send("#{prop.name}=", (value.nil? ? nil : value.id))
+          end
+        else
+          assoc = self.class.associations.detect { |ass| ass[:options][:class_name] == class_name }
+          return unless assoc
+          case assoc[:type]
+          when :belongs_to
+            send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
+          when :collection_of
+            instance_eval("#{assoc[:options][:foreign_key]}.push('#{value.nil? ? nil : value.id}')")
+          end
         end
       end
 

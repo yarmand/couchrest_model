@@ -3,21 +3,32 @@ require 'spec_helper'
 
 describe 'Associations' do
 
-  let(:father) { Husband.create(name: 'bob')}
-  let(:mummy)  { Wife.create(   name: 'claire')}
+  let(:father) { Parent.create(name: 'Bob')}
+  let(:can_fly){ SuperPower.create(description: 'Can fly when there is no cloud')}
+  let(:mummy)  { Parent.create(   name: 'Claire')}
   let(:kid)    { Kid.create(    name: 'Vladimir')}
 
   describe 'of type belongs_to' do
     context 'with the other side also belongs_to (1-1)' do
-      it 'should set the other side property too' do
-        father.wife = mummy
-        mummy.husband.should eql(father)
+      context '[non ambiguous association]' do
+        it 'should set the other side property too' do
+          father.super_power = can_fly
+          can_fly.parent.should eql father
+        end
       end
 
-      it 'should remove the other side if value is nil' do
-        father.wife = mummy
-        father.wife = nil
-        mummy.husband.should be_nil
+      context '[ambiguous association]' do
+        it 'should set the other side property too' do
+          father.wife = mummy
+          mummy.husband.should eql(father)
+        end
+      end
+
+      context '[cyclic association]' do
+        it 'should set the other side property too' do
+          father.lives_with = mummy
+          mummy.lives_with.should eql(father)
+        end
       end
     end
 
@@ -25,6 +36,7 @@ describe 'Associations' do
       let(:invoice) { SaleInvoice.create(:price => 2000) }
       let(:client)  { Client.create(:name => "Sam Lown") }
       it 'should set property without error' do
+        invoice.client = client
         lambda { invoice.client = client }.should_not raise_error
       end
 
