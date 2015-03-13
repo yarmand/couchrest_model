@@ -5,8 +5,9 @@ describe 'Associations' do
 
   let(:father) { Parent.create(name: 'Bob')}
   let(:can_fly){ SuperPower.create(description: 'Can fly when there is no cloud')}
-  let(:mummy)  { Parent.create(   name: 'Claire')}
-  let(:kid)    { Kid.create(    name: 'Vladimir')}
+  let(:mummy)  { Parent.create(name: 'Claire')}
+  let(:kid)    { Kid.create(   name: 'Vladimir')}
+  let(:dog)    { Pet.create(   name: 'Valdo' )}
 
   describe 'of type belongs_to' do
     context 'with the other side also belongs_to (1-1)' do
@@ -72,6 +73,12 @@ describe 'Associations' do
           father.children << kid
           kid.dad.should eq(father)
         end
+        context 'when reverse_association is specified' do
+          it 'should populate the belongs_to property' do
+            father.pets << dog
+            dog.owner.should eq(father)
+          end
+        end
         describe 'when object is saved' do
           it 'should also save other side' do
             father.children << kid
@@ -85,6 +92,12 @@ describe 'Associations' do
         it 'should populate the belongs_to property' do
           father.children.push kid
           kid.dad.should eq(father)
+        end
+        context 'when reverse_association is specified' do
+          it 'should populate the belongs_to property' do
+            father.pets.push dog
+            dog.owner.should eq(father)
+          end
         end
         describe 'when object is saved' do
           it 'should also save other side' do
@@ -100,6 +113,10 @@ describe 'Associations' do
           father.children.unshift kid
           kid.dad.should eq(father)
         end
+        it 'should populate the belongs_to property' do
+          father.pets.unshift dog
+          dog.owner.should eq(father)
+        end
         describe 'when object is saved' do
           it 'should also save other side' do
             father.children.unshift kid
@@ -113,6 +130,10 @@ describe 'Associations' do
         it 'should populate the belongs_to property' do
           father.children[3]= kid
           kid.dad.should eq(father)
+        end
+        it 'should populate the belongs_to property' do
+          father.pets[3] = dog
+          dog.owner.should eq(father)
         end
         describe 'when object is saved' do
           it 'should also save other side' do
@@ -128,6 +149,13 @@ describe 'Associations' do
           father.children.push kid
           father.children.pop
           kid.dad.should be_nil
+        end
+        context 'specifying reverse association' do
+          it 'should set nil the belongs_to property' do
+            father.pets.push dog
+            father.pets.pop
+            dog.owner.should be_nil
+          end
         end
         describe 'when object is saved' do
           it 'should also save other side' do
@@ -145,6 +173,13 @@ describe 'Associations' do
           father.children.push kid
           father.children.shift
           kid.dad.should be_nil
+        end
+        context 'specifying reverse association' do
+          it 'should set nil the belongs_to property' do
+            father.pets.push dog
+            father.pets.shift
+            dog.owner.should be_nil
+          end
         end
         describe 'when object is saved' do
           it 'should also save other side' do
