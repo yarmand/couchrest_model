@@ -111,7 +111,7 @@ describe "Assocations" do
     it "should create an associated property and collection proxy" do
       @invoice.respond_to?('entry_ids').should be_true
       @invoice.respond_to?('entry_ids=').should be_true
-      @invoice.entries.class.should eql(::CouchRest::Model::CollectionOfProxy)
+      @invoice.entries.class.should eql(::CouchRest::Model::Associations::CollectionOfProxy)
     end
 
     it "should allow replacement of objects" do
