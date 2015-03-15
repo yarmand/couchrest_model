@@ -18,8 +18,8 @@ module CouchRest
         # An attribute will be created matching the name of the attribute
         # with '_id' on the end, or the foreign key (:foreign_key) provided.
         #
-        # Searching for the assocated object is performed using a string
-        # (:proxy) to be evaulated in the context of the owner. Typically
+        # Searching for the associated object is performed using a string
+        # (:proxy) to be evaluated in the context of the owner. Typically
         # this will be set to the class name (:class_name), or determined
         # automatically if the owner belongs to a proxy object.
         #
@@ -35,8 +35,15 @@ module CouchRest
         #
         #    self.company.clients
         #
-        # If the name of the collection proxy is not the pluralized assocation name,
+        # If the name of the collection proxy is not the pluralized association name,
         # it can be set with the :proxy_name option.
+        #
+        # If the owner model define an association back to the belonged model, setting
+        # the owner will also set the (:reverse_association) attribute of the owner.
+        # After such affectation, saving the object model will also trigger the save of
+        # the owner object.
+        # (:reverse_association) is optional and should be used only to remove ambiguity,
+        # when it can't be calculated from the (:class_name)
         #
         def belongs_to(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
@@ -88,6 +95,14 @@ module CouchRest
         #
         # NOTE: This method is *not* recommended for large collections or collections that change
         # frequently! Use with prudence.
+        #
+        # If the associated model define an association back to the collection owner model, adding
+        # or removing from the collection will also populate the (:reverse_association) attribute
+        # of associated model.
+        # After such affectation, saving the object model will also trigger the save of
+        # the associated object.
+        # (:reverse_association) is optional and should be used only to remove ambiguity,
+        # when it can't be calculated from the (:class_name)
         #
         def collection_of(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
