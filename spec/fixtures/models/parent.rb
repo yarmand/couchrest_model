@@ -7,4 +7,5 @@ class  Parent < CouchRest::Model::Base
   belongs_to :lives_with, :class_name => :parent, :reverse_association => :lives_with
 
   collection_of :children, :class_name => 'Kid'
+  collection_of :pets , :reverse_association => :owner
 end
