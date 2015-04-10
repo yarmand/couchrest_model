@@ -11,10 +11,10 @@ describe 'Associations' do
 
   describe 'of type belongs_to' do
     context 'with the other side also belongs_to (1-1)' do
-      context '[non ambiguous association]' do
-        it 'should set the other side property too' do
+      context 'when reverse association not specified' do
+        it 'should NOT set the other side' do
           father.super_power = can_fly
-          can_fly.parent.should eql father
+          can_fly.parent.should be_nil
         end
       end
 
@@ -69,77 +69,89 @@ describe 'Associations' do
   describe 'of type collection_of' do
     context 'with the other side is a belongs_to (n-1).' do
       context 'Adding to the collection using <<' do
-        it 'should populate the belongs_to property' do
-          father.children << kid
-          kid.dad.should eq(father)
+        context 'when NO reverse_assocition is specified' do
+          it 'should populate the belongs_to property' do
+            father.children << kid
+            kid.dad.should be_nil
+          end
         end
         context 'when reverse_association is specified' do
           it 'should populate the belongs_to property' do
             father.pets << dog
             dog.owner.should eq(father)
           end
-        end
-        describe 'when object is saved' do
-          it 'should also save other side' do
-            father.children << kid
-            kid.should_receive(:save)
-            father.save
+          describe 'when object is saved' do
+            it 'should also save other side' do
+              father.children << kid
+              kid.should_receive(:save)
+              father.save
+            end
           end
         end
       end
 
       context 'Adding to the collection using push' do
-        it 'should populate the belongs_to property' do
-          father.children.push kid
-          kid.dad.should eq(father)
+        context 'when NO reverse_assocition is specified' do
+          it 'should populate the belongs_to property' do
+            father.children.push kid
+            kid.dad.should be_nil
+          end
         end
         context 'when reverse_association is specified' do
           it 'should populate the belongs_to property' do
             father.pets.push dog
             dog.owner.should eq(father)
           end
-        end
-        describe 'when object is saved' do
-          it 'should also save other side' do
-            father.children.push kid
-            kid.should_receive(:save)
-            father.save
+          describe 'when object is saved' do
+            it 'should also save other side' do
+              father.children.push kid
+              kid.should_receive(:save)
+              father.save
+            end
           end
         end
       end
 
       context 'Adding to the collection using unshift' do
-        it 'should populate the belongs_to property' do
-          father.children.unshift kid
-          kid.dad.should eq(father)
-        end
-        it 'should populate the belongs_to property' do
-          father.pets.unshift dog
-          dog.owner.should eq(father)
-        end
-        describe 'when object is saved' do
-          it 'should also save other side' do
+        context 'when NO reverse_assocition is specified' do
+          it 'should NOT populate the belongs_to property' do
             father.children.unshift kid
-            kid.should_receive(:save)
-            father.save
+            kid.dad.should be_nil
+          end
+        end
+        context 'when a reverse_assocition is specified' do
+          it 'should populate the belongs_to property' do
+            father.pets.unshift dog
+            dog.owner.should eq(father)
+          end
+          describe 'when object is saved' do
+            it 'should also save other side' do
+              father.pets.unshift dog
+              dog.should_receive(:save)
+              father.save
+            end
           end
         end
       end
 
       context 'Adding to the collection using [n]=' do
-        it 'should populate the belongs_to property' do
-          father.children[3]= kid
-          kid.dad.should eq(father)
+        context 'when NO reverse_assocition is specified' do
+          it 'should NOT populate the belongs_to property' do
+            father.children[3]= kid
+            kid.dad.should be_nil
+          end
         end
-        it 'should populate the belongs_to property' do
-          father.pets[3] = dog
-          dog.owner.should eq(father)
-        end
-        describe 'when object is saved' do
-          it 'should also save other side' do
-            father.children[4] = kid
-            kid.should_receive(:save)
-            father.save
+        context 'when a reverse_assocition is specified' do
+          it 'should populate the belongs_to property' do
+            father.pets[3] = dog
+            dog.owner.should eq(father)
+          end
+          describe 'when object is saved' do
+            it 'should also save other side' do
+              father.pets[4] = dog
+              dog.should_receive(:save)
+              father.save
+            end
           end
         end
       end

@@ -212,20 +212,12 @@ module CouchRest
 
       def set_back_association(value, class_name, reverse_association = nil)
         if reverse_association && !reverse_association.empty?
-          prop = self.class.properties.detect { |prop|  prop.name =~ %r{#{reverse_association}_id} }
-          if prop.type.ancestors.include? Enumerable
+          prop = self.class.properties.detect { |prop|  prop.name =~ %r{#{reverse_association.to_s.singularize}_ids?} }
+          raise "Cannot find reverse association: #{reverse_association}" unless prop
+          if attributes[prop.name].class.ancestors.include?(Enumerable)
             instance_eval("#{prop.name}.push('#{value.nil? ? nil : value.id}')")
           else
             send("#{prop.name}=", (value.nil? ? nil : value.id))
-          end
-        else
-          assoc = self.class.associations.detect { |ass| ass[:options][:class_name] == class_name }
-          return unless assoc
-          case assoc[:type]
-          when :belongs_to
-            send("#{assoc[:options][:foreign_key]}=", (value.nil? ? nil : value.id))
-          when :collection_of
-            instance_eval("#{assoc[:options][:foreign_key]}.push('#{value.nil? ? nil : value.id}')")
           end
         end
       end
