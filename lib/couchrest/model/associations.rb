@@ -42,8 +42,8 @@ module CouchRest
         # the owner will also set the (:reverse_association) attribute of the owner.
         # After such affectation, saving the object model will also trigger the save of
         # the owner object.
-        # (:reverse_association) is optional and should be used only to remove ambiguity,
-        # when it can't be calculated from the (:class_name)
+        # (:reverse_association) is optional. When used, saving the belonged object will
+        # trigger the save of the owner object.
         #
         def belongs_to(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
@@ -101,8 +101,8 @@ module CouchRest
         # of associated model.
         # After such affectation, saving the object model will also trigger the save of
         # the associated object.
-        # (:reverse_association) is optional and should be used only to remove ambiguity,
-        # when it can't be calculated from the (:class_name)
+        # (:reverse_association) is optional. When used, saving the object with a collection will
+        # trigger save of the new members of the collection.
         #
         def collection_of(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
