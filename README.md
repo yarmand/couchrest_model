@@ -107,7 +107,7 @@ $ rails generate couchrest_model:config
 $ rails generate model person --orm=couchrest_model
 ```
 
-## General Usage 
+## General Usage
 
 ```ruby
 require 'couchrest_model'
@@ -140,6 +140,20 @@ end
 @cat.update_attributes(:name => 'Felix', :random_text => 'feline')
 @cat.new? # false
 @cat.random_text  # Raises error!
+
+### reverse associations
+class Parent < CouchRest::Model::Base
+  collection_of :children
+end
+
+class Child < CouchRest::Model::Base
+  belongs_to :dad, class: Parent, :reverse_association => :children
+end
+
+@bob   = Parent.new
+@kevin = Child.new
+@kevin.dad = @bob
+@bob.children.include?(@kevin) # true
 ```
 
 ## Development
