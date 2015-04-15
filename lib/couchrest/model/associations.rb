@@ -1,12 +1,15 @@
 module CouchRest
   module Model
     module Associations
+      extend ActiveSupport::Concern
 
       # Basic support for relationships between CouchRest::Model::Base
-      
-      def self.included(base)
-        base.extend(ClassMethods)
+
+      included do
+        after_save :save_dirty_association if respond_to?(:after_save)
       end
+
+      Association = Struct.new(:type, :attribute, :options, :target)
 
       module ClassMethods
 
@@ -15,14 +18,14 @@ module CouchRest
         # An attribute will be created matching the name of the attribute
         # with '_id' on the end, or the foreign key (:foreign_key) provided.
         #
-        # Searching for the assocated object is performed using a string 
-        # (:proxy) to be evaulated in the context of the owner. Typically
+        # Searching for the associated object is performed using a string
+        # (:proxy) to be evaluated in the context of the owner. Typically
         # this will be set to the class name (:class_name), or determined
         # automatically if the owner belongs to a proxy object.
         #
         # If the association owner is proxied by another model, than an attempt will
         # be made to automatically determine the correct place to request
-        # the documents. Typically, this is a method with the pluralized name of the 
+        # the documents. Typically, this is a method with the pluralized name of the
         # association inside owner's owner, or proxy.
         #
         # For example, imagine a company acts as a proxy for invoices and clients.
@@ -32,13 +35,22 @@ module CouchRest
         #
         #    self.company.clients
         #
-        # If the name of the collection proxy is not the pluralized assocation name, 
+        # If the name of the collection proxy is not the pluralized association name,
         # it can be set with the :proxy_name option.
+        #
+        # If the owner model define an association back to the belonged model, setting
+        # the owner will also set the (:reverse_association) attribute of the owner.
+        # After such affectation, saving the object model will also trigger the save of
+        # the owner object.
+        # (:reverse_association) is optional. When used, saving the belonged object will
+        # trigger the save of the owner object.
         #
         def belongs_to(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
 
           property(opts[:foreign_key], String, opts)
+
+          associations.push(Association.new(:belongs_to, attrib, opts, nil))
 
           create_association_property_setter(attrib, opts)
           create_belongs_to_getter(attrib, opts)
@@ -84,6 +96,14 @@ module CouchRest
         # NOTE: This method is *not* recommended for large collections or collections that change
         # frequently! Use with prudence.
         #
+        # If the associated model define an association back to the collection owner model, adding
+        # or removing from the collection will also populate the (:reverse_association) attribute
+        # of associated model.
+        # After such affectation, saving the object model will also trigger the save of
+        # the associated object.
+        # (:reverse_association) is optional. When used, saving the object with a collection will
+        # trigger save of the new members of the collection.
+        #
         def collection_of(attrib, *options)
           opts = merge_belongs_to_association_options(attrib, options.first)
           opts[:foreign_key] = opts[:foreign_key].pluralize
@@ -91,18 +111,26 @@ module CouchRest
 
           property(opts[:foreign_key], [String], opts)
 
+          associations.push(Association.new(:collection_of, attrib, opts, nil))
+
           create_association_property_setter(attrib, opts)
           create_collection_of_getter(attrib, opts)
           create_collection_of_setter(attrib, opts)
         end
 
 
+        def associations
+          @_associations ||= []
+        end
+
         private
 
         def merge_belongs_to_association_options(attrib, options = nil)
+          class_name = options.delete(:class_name) if options.is_a?(Hash)
+          class_name ||= attrib
           opts = {
             :foreign_key => attrib.to_s.singularize + '_id',
-            :class_name  => attrib.to_s.singularize.camelcase,
+            :class_name  => class_name.to_s.singularize.camelcase,
             :proxy_name  => attrib.to_s.pluralize,
             :allow_blank => false
           }
@@ -146,7 +174,15 @@ module CouchRest
         def create_belongs_to_setter(attrib, options)
           class_eval <<-EOS, __FILE__, __LINE__ + 1
             def #{attrib}=(value)
-              self.#{options[:foreign_key]} = value.nil? ? nil : value.id
+                binding = @#{attrib}
+                self.#{options[:foreign_key]} = value.nil? ? nil : value.id
+              unless value.nil?
+                binding = value
+                binding.set_back_association(self, self.class.name, '#{options[:reverse_association]}')
+              else
+                binding.set_back_association(nil, self.class.name, '#{options[:reverse_association]}')
+              end
+              register_dirty_association(binding)
               @#{attrib} = value
             end
           EOS
@@ -159,7 +195,7 @@ module CouchRest
             def #{attrib}(reload = false)
               return @#{attrib} unless @#{attrib}.nil? or reload
               ary = self.#{options[:foreign_key]}.collect{|i| #{options[:proxy]}.get(i)}
-              @#{attrib} = ::CouchRest::Model::CollectionOfProxy.new(ary, find_property('#{options[:foreign_key]}'), self)
+              @#{attrib} = ::CouchRest::Model::Associations::CollectionOfProxy.new(ary, find_property('#{options[:foreign_key]}'), self)
             end
           EOS
         end
@@ -167,76 +203,38 @@ module CouchRest
         def create_collection_of_setter(attrib, options)
           class_eval <<-EOS, __FILE__, __LINE__ + 1
             def #{attrib}=(value)
-              @#{attrib} = ::CouchRest::Model::CollectionOfProxy.new(value, find_property('#{options[:foreign_key]}'), self)
+              @#{attrib} = ::CouchRest::Model::Associations::CollectionOfProxy.new(value, find_property('#{options[:foreign_key]}'), self)
             end
           EOS
         end
 
       end
 
-    end
-
-    # Special proxy for a collection of items so that adding and removing
-    # to the list automatically updates the associated property.
-    class CollectionOfProxy < CastedArray
-
-      def initialize(array, property, parent)
-        (array ||= []).compact!
-        super(array, property, parent)
-        casted_by[casted_by_property.to_s] = [] # replace the original array!
-        array.compact.each do |obj|
-          check_obj(obj)
-          casted_by[casted_by_property.to_s] << obj.id
+      def set_back_association(value, class_name, reverse_association = nil)
+        if reverse_association && !reverse_association.empty?
+          prop = self.class.properties.detect { |prop|  prop.name =~ %r{#{reverse_association.to_s.singularize}_ids?} }
+          raise "Cannot find reverse association: #{reverse_association}" unless prop
+          if attributes[prop.name].class.ancestors.include?(Enumerable)
+            instance_eval("#{prop.name}.push('#{value.nil? ? nil : value.id}')")
+          else
+            send("#{prop.name}=", (value.nil? ? nil : value.id))
+          end
         end
       end
 
-      def << obj
-        check_obj(obj)
-        casted_by[casted_by_property.to_s] << obj.id
-        super(obj)
+      def dirty_associations
+        @_dirty_associations ||= []
       end
 
-      def push(obj)
-        check_obj(obj)
-        casted_by[casted_by_property.to_s].push obj.id
-        super(obj)
+      def register_dirty_association(obj)
+        dirty_associations << obj unless @_dirty_associations.include?(obj)
       end
 
-      def unshift(obj)
-        check_obj(obj)
-        casted_by[casted_by_property.to_s].unshift obj.id
-        super(obj)
-      end
-
-      def []= index, obj
-        check_obj(obj)
-        casted_by[casted_by_property.to_s][index] = obj.id
-        super(index, obj)
-      end
-
-      def pop
-        casted_by[casted_by_property.to_s].pop
-        super
-      end
-
-      def shift
-        casted_by[casted_by_property.to_s].shift
-        super
-      end
-
-      protected
-
-      def check_obj(obj)
-        raise "Object cannot be added to #{casted_by.class.to_s}##{casted_by_property.to_s} collection unless saved" if obj.new?
-      end
-
-      # Override CastedArray instantiation_and_cast method for a simpler
-      # version that will not try to cast the model.
-      def instantiate_and_cast(obj, change = true)
-        couchrest_parent_will_change! if change && use_dirty?
-        obj.casted_by = casted_by if obj.respond_to?(:casted_by)
-        obj.casted_by_property = casted_by_property if obj.respond_to?(:casted_by_property)
-        obj
+      def save_dirty_association
+        while !dirty_associations.empty? do
+          obj = dirty_associations.pop
+          obj.save
+        end
       end
 
     end
